@@ -42,12 +42,20 @@ jobs:
         
         # On Windows, copy both .dll and .lib files
         if [ "${{ runner.os }}" = "Windows" ]; then
-          cp target/${{ matrix.target }}/release/kadugu_net.dll release/ 2>/dev/null || true
-          cp target/${{ matrix.target }}/release/kadugu_net.lib release/ 2>/dev/null || true
+          if [ -f "target/${{ matrix.target }}/release/kadugu_net.dll" ]; then
+            cp target/${{ matrix.target }}/release/kadugu_net.dll release/
+          fi
+          if [ -f "target/${{ matrix.target }}/release/kadugu_net.lib" ]; then
+            cp target/${{ matrix.target }}/release/kadugu_net.lib release/
+          fi
         # On Unix-like systems, copy the shared library and static library
         else
-          cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }} release/ 2>/dev/null || true
-          cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }} release/ 2>/dev/null || true
+          if [ -f "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }}" ]; then
+            cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }} release/
+          fi
+          if [ -f "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }}" ]; then
+            cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }} release/
+          fi
         fi
 
     - name: Upload Artifacts
