@@ -36,28 +36,24 @@ jobs:
         targets: ${{ matrix.target }}
 
     - name: Build in release mode
-      shell: bash
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Create release directory
+      run: mkdir -p release
+
+    - name: Copy Windows artifacts
+      if: runner.os == 'Windows'
       run: |
-        cargo build --release --target ${{ matrix.target }}
+        Copy-Item -Path "target/${{ matrix.target }}/release/kadugu_net.dll" -Destination "release/" -ErrorAction SilentlyContinue
+        Copy-Item -Path "target/${{ matrix.target }}/release/kadugu_net.lib" -Destination "release/" -ErrorAction SilentlyContinue
+      shell: pwsh
+
+    - name: Copy Unix artifacts
+      if: runner.os != 'Windows'
+      run: |
         mkdir -p release
-        
-        # On Windows, copy both .dll and .lib files
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          if [ -f "target/${{ matrix.target }}/release/kadugu_net.dll" ]; then
-            cp target/${{ matrix.target }}/release/kadugu_net.dll release/
-          fi
-          if [ -f "target/${{ matrix.target }}/release/kadugu_net.lib" ]; then
-            cp target/${{ matrix.target }}/release/kadugu_net.lib release/
-          fi
-        # On Unix-like systems, copy the shared library and static library
-        else
-          if [ -f "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }}" ]; then
-            cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }} release/
-          fi
-          if [ -f "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }}" ]; then
-            cp target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }} release/
-          fi
-        fi
+        cp "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.ext }}" "release/" 2>/dev/null || true
+        cp "target/${{ matrix.target }}/release/libkadugu_net.${{ matrix.lib_ext }}" "release/" 2>/dev/null || true
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
