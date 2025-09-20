@@ -68,6 +68,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write  # Needed to create a release
     steps:
       - name: Get the version
         id: get_version
@@ -94,3 +96,5 @@ jobs:
           prerelease: false
           files: |
             artifacts/kadugu-net-binaries-*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This is automatically provided by GitHub Actions
