@@ -146,8 +146,6 @@ impl PortForwardingServer {
             .accept(StreamProtocol::new(PROXY_PROTOCOL))?;
 
         let accepted_peer_ids = accepted_peer_ids.clone();
-        let server_addr = server_addr; // Clone the listen_addr
-
         // Create a new stop receiver for the incoming streams handler
         let streams_stop_receiver = stop_receiver.resubscribe();
 

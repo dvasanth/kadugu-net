@@ -66,7 +66,7 @@ impl PortForwardingClient {
             return Err(anyhow::anyhow!("Client is already running"));
         }
 
-        let server_id = self.server_id.clone();
+        let server_id = self.server_id;
         let local_forward_addr = self.local_forward_addr;
         let config = self.config.clone();
         let stop_receiver = self.stop_sender.subscribe();
@@ -97,7 +97,7 @@ impl PortForwardingClient {
         let start = std::time::Instant::now();
         let mut connected = false;
         while start.elapsed() < Duration::from_secs(10) {
-            if let Ok(_) = rx.try_recv() {
+            if rx.try_recv().is_ok() {
                 tracing::info!("Client connected successfully");
                 connected = true;
                 break;
