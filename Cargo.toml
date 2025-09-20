@@ -1,0 +1,64 @@
+[package]
+name = "kadugu-net"
+version = "0.1.0"
+edition = "2021"
+authors = ["vasanth"]
+description = "A high-performance, secure port forwarding library built on libp2p"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/dvasanth/kadugu-net"
+homepage = "https://github.com/dvasanth/kadugu-net"
+documentation = "https://docs.rs/kadugu-net"
+keywords = ["port-forwarding", "p2p", "networking", "libp2p"]
+categories = ["network-programming", "asynchronous"]
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "LICENSE-*",
+    "README.md",
+    "CHANGELOG.md",
+]
+
+[lib]
+# Compile as a Windows DLL (dynamic) and static LIB
+crate-type = ["cdylib", "staticlib"]
+
+[features]
+default = []
+ffi = ["cbindgen"]
+
+[build-dependencies]
+cbindgen = { version = "0.26.0", optional = true }
+
+# For testing and examples
+[dev-dependencies]
+clap = { version = "4.0", features = ["derive"] }
+tempfile = "3.8"
+
+# For benchmarking (uncomment if needed)
+#[dev-dependencies.criterion]
+#version = "0.5"
+#features = ["html_reports"]
+
+# For documentation tests
+[package.metadata.docs.rs]
+# To build documentation for all features
+all-features = true
+# Document the FFI module
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+futures = "0.3.29"
+libp2p = { version = "0.53.2", features = [
+    "tokio", "noise", "macros", "ping", "tcp", "identify", "yamux", 
+    "relay", "quic", "autonat", "dns", "dcutr"
+  ] }
+libp2p-stream = "0.1.0-alpha"
+tokio-stream = "0.1.15"
+#libp2p-kad = { version = "0.45.3" }
+async-compat = "0.2.3"
+tracing = { version = "0.1.40" }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+once_cell = "1.17.0"
