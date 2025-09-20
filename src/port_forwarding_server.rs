@@ -1,20 +1,10 @@
+use crate::config::Config;
 use anyhow::Result;
 use async_compat::Compat;
 use futures::stream::StreamExt;
 use libp2p::{
-    Multiaddr,
-    identify,
-    identity::Keypair,
-    multiaddr::Protocol,
-    relay,
-    swarm::{
-        NetworkBehaviour,
-    },
-    tcp,
-    yamux,
-    dcutr,
-    StreamProtocol,
-    noise,
+    dcutr, identify, identity::Keypair, multiaddr::Protocol, noise, relay, swarm::NetworkBehaviour,
+    tcp, yamux, Multiaddr, StreamProtocol,
 };
 use libp2p_stream as stream;
 use std::net::SocketAddr;
@@ -23,9 +13,7 @@ use std::thread;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::sync::{broadcast};
-use crate::config::Config;
-
+use tokio::sync::broadcast;
 
 pub struct PortForwardingServer {
     server_addr: SocketAddr,
@@ -66,7 +54,7 @@ impl PortForwardingServer {
             runtime,
         }
     }
-    
+
     /// Returns the peer ID as a string
     pub fn peer_id(&self) -> String {
         self.key_pair.public().to_peer_id().to_string()
@@ -75,7 +63,9 @@ impl PortForwardingServer {
     pub fn stop(&mut self) -> anyhow::Result<()> {
         self.stop_sender.send(())?;
         if let Some(handle) = self.join_handle.take() {
-            handle.join().map_err(|_| anyhow::anyhow!("Failed to join server thread"))?;
+            handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("Failed to join server thread"))?;
         }
         tracing::info!("Server shutdown completed");
         Ok(())
@@ -89,21 +79,29 @@ impl PortForwardingServer {
         let stop_sender_clone = self.stop_sender.clone();
         let stop_receiver = stop_sender_clone.subscribe();
         let runtime = self.runtime.clone();
-        
+
         // Spawn the server on the provided runtime
         let join_handle = thread::spawn(move || {
             // Run the server in the new runtime
             runtime.block_on(async move {
-                if let Err(e) = Self::start_internal(server_addr, accepted_peer_ids, config, key_pair, stop_receiver).await {
+                if let Err(e) = Self::start_internal(
+                    server_addr,
+                    accepted_peer_ids,
+                    config,
+                    key_pair,
+                    stop_receiver,
+                )
+                .await
+                {
                     tracing::error!("Server error: {}", e);
                 }
             });
         });
-        
+
         self.join_handle = Some(join_handle);
         Ok(())
     }
-    
+
     async fn start_internal(
         server_addr: SocketAddr,
         accepted_peer_ids: Vec<String>,
@@ -132,40 +130,39 @@ impl PortForwardingServer {
             })?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(10)))
             .build();
-    
-        let relay_address:Multiaddr = config.relay_address
-            .parse()
-            .expect("Invalid relay address");
-    
+
+        let relay_address: Multiaddr = config.relay_address.parse().expect("Invalid relay address");
+
         swarm.listen_on("/ip4/0.0.0.0/udp/12007/quic-v1".parse()?)?;
         swarm.listen_on("/ip6/::/udp/12007/quic-v1".parse()?)?;
         swarm.dial(relay_address.clone())?;
-        
+
         let stop_receiver = stop_receiver;
         const PROXY_PROTOCOL: &str = "/proxy";
         let incoming_streams = swarm
-                .behaviour()
-                .stream
-                .new_control()
+            .behaviour()
+            .stream
+            .new_control()
             .accept(StreamProtocol::new(PROXY_PROTOCOL))?;
 
         let accepted_peer_ids = accepted_peer_ids.clone();
         let server_addr = server_addr; // Clone the listen_addr
-        
+
         // Create a new stop receiver for the incoming streams handler
         let streams_stop_receiver = stop_receiver.resubscribe();
-        
+
         tokio::spawn(async move {
             PortForwardingServer::handle_incoming_streams(
-                incoming_streams, 
-                accepted_peer_ids, 
+                incoming_streams,
+                accepted_peer_ids,
                 server_addr,
-                streams_stop_receiver
-            ).await;
+                streams_stop_receiver,
+            )
+            .await;
         });
-        
+
         let mut relay_reservation_complete = false;
-       
+
         // Poll the swarm to make progress.
         let mut swarm_stop_receiver = stop_receiver.resubscribe();
         loop {
@@ -208,7 +205,7 @@ impl PortForwardingServer {
                     }
                 }
             };
-            
+
             // Return early if there was an error
             // If there's an error (including our stop signal), return it
             if let Err(e) = result {
@@ -219,9 +216,8 @@ impl PortForwardingServer {
                 // Otherwise, return the actual error
                 return Err(e);
             }
-            }
         }
-
+    }
 
     async fn handle_incoming_streams(
         mut incoming_streams: stream::IncomingStreams,
@@ -241,7 +237,7 @@ impl PortForwardingServer {
                         Some(s) => s,
                         None => break, // No more incoming streams
                     };
-                    
+
                     let peer_id_str = peer.to_string();
                     let mut is_accepted = true;
                     for accepted_id in &accepted_peer_ids {
@@ -252,18 +248,18 @@ impl PortForwardingServer {
                         tracing::info!("Accepted peer ID: {} didn't match with peer ID: {}", accepted_id, peer_id_str);
                         is_accepted = false;
                     }
-                    
+
                     // If no accepted peer IDs are specified, accept all peers
                     if accepted_peer_ids.is_empty() {
                         is_accepted = true;
                     }
-                    
+
                     // Check if peer ID is in the allowed vector of strings
                     if !is_accepted {
                         tracing::warn!("Unauthorized peer: {}", peer_id_str);
                         continue;
                     }
-            
+
                     let target_addr = server_addr;
                     tokio::spawn(async move {
                         let mut app_stream = match TcpStream::connect(target_addr).await {
@@ -273,10 +269,10 @@ impl PortForwardingServer {
                                 return;
                             }
                         };
-                        
+
                         let _ = app_stream.set_nodelay(true);
                         let mut p2p_tokio_stream = Compat::new(p2p_stream);
-            
+
                         if let Err(e) = tokio::io::copy_bidirectional(&mut p2p_tokio_stream, &mut app_stream).await {
                             tracing::info!("Error copying data: {}", e);
                         }
@@ -285,5 +281,4 @@ impl PortForwardingServer {
             }
         }
     }
-
 }

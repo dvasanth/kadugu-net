@@ -1,6 +1,5 @@
 use libp2p::StreamProtocol;
 
-
 #[derive(Debug, Clone)]
 pub struct Config {
     pub proxy_protocol: StreamProtocol,
@@ -9,7 +8,6 @@ pub struct Config {
     pub proxy_listen_addr: String,
     pub log_level: String,
 }
-
 
 impl Default for Config {
     fn default() -> Self {
@@ -26,12 +24,12 @@ impl Default for Config {
 impl Config {
     pub fn from_env() -> Self {
         let mut config = Self::default();
-        
+
         // Override with environment variables if they exist
         if let Ok(relay) = std::env::var("RELAY_ADDRESS") {
             config.relay_address = relay;
         }
-        
+
         config
     }
 }

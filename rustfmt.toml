@@ -7,31 +7,10 @@ newline_style = "Auto"
 use_small_heuristics = "Default"
 
 # Import configuration
-group_imports = "StdExternalCrate"
-imports_granularity = "Module"
 reorder_imports = true
 
-# Control where the ... in a pattern leads/ends a line.
-match_arm_leading_pipes = "Preserve"
-
-# Control where the | is in closure signatures.
+# Control where the | is in closure signatures
 fn_params_layout = "Tall"
 
-# Control where the + is in where clauses.
-where_single_line = false
-
-# Control where the { is on a block.
-brace_style = "SameLineWhere"
-
-# Control where the = is on a type or const item.
-type_punctuation_density = "Wide"
-
-# Control where comments go.
-comment_width = 100
-wrap_comments = true
-
-# Control how struct literals are formatted.
-indent_style = "Block"
-
-# Control how match arms are aligned.
-match_arm_blocks = true
+# Control where the ... in a pattern leads/ends a line
+match_arm_leading_pipes = "Preserve"
