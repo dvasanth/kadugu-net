@@ -12,8 +12,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            proxy_protocol: StreamProtocol::new("/proxy"),
-            proxy_agent: "libp2p-proxy-vpn".to_string(),
+            proxy_protocol: StreamProtocol::new("/portforward/0.1.0"),
+            proxy_agent: "libp2p-port-forward".to_string(),
             relay_address: "/ip4/104.131.131.82/udp/4001/quic-v1/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ".to_string(), // Default relay address
             proxy_listen_addr: "127.0.0.1:0".to_string(), // Default listen address
             log_level: "info".to_string(),
