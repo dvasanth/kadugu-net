@@ -82,7 +82,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create Release
+      - name: Create or Update Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
@@ -98,5 +98,8 @@ jobs:
           prerelease: false
           files: |
             artifacts/kadugu-net-binaries-*/*
+          allow_updates: true
+          update: true
+          replace_assets: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This is automatically provided by GitHub Actions
