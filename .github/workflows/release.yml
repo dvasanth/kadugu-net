@@ -10,6 +10,8 @@ jobs:
     name: Build Release Artifacts
     runs-on: ${{ matrix.os }}
     strategy:
+      max-parallel: 1  # Run one job at a time to prevent race conditions
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
