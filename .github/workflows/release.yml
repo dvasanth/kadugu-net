@@ -84,9 +84,9 @@ jobs:
 
       - name: Create or Update Release
         id: create_release
-        uses: softprops/action-gh-release@v2.2.1
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
+          tag: ${{ github.ref_name }}
           name: Release v${{ steps.get_version.outputs.version }}
           body: |
             Pre-built binaries for kadugu-net v${{ steps.get_version.outputs.version }}
@@ -96,9 +96,11 @@ jobs:
             - Includes both static and dynamic libraries
           draft: false
           prerelease: false
-          files: |
+          artifacts: |
             artifacts/kadugu-net-binaries-*/*
-          overwrite_files: true
-          fail_on_unmatched_files: false
+          allowUpdates: true
+          replacesArtifacts: true
+          artifactErrorsFailBuild: true
+          token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This is automatically provided by GitHub Actions
