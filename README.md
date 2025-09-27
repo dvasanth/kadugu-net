@@ -25,37 +25,67 @@ kadugu-net = "0.1.0"
 
 ## Usage
 
-### Basic Server
+### End-to-end example (matches the unit test)
+
+This example starts a server, retrieves its peer ID, starts a client targeting that peer, waits for some time, and then stops both. It uses the crate's exported FFI-style functions (which are also callable from Rust) as used in the unit test.
 
 ```rust
-use kadugu_net::PortForwardingServer;
-use std::error::Error;
+use std::ffi::{CStr, CString};
+use std::time::Duration;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let server = PortForwardingServer::new("0.0.0.0:0", None).await?;
-    let peer_id = server.peer_id().to_string();
-    println!("Server running with peer ID: {}", peer_id);
-    
-    // Keep the server running
-    tokio::signal::ctrl_c().await?;
-    Ok(())
-}
-```
+use kadugu_net::{
+    free_peer_id,
+    get_server_peer_id,
+    start_port_forwarding_client,
+    start_port_forwarding_server,
+    stop_port_forwarding_client,
+    stop_port_forwarding_server,
+};
 
-### Basic Client
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Start the server listening on a local address
+    let server_addr = CString::new("127.0.0.1:8081")?;
+    // No accepted peer filter (accept all)
+    let accepted_peer: *const std::os::raw::c_char = std::ptr::null();
 
-```rust
-use kadugu_net::PortForwardingClient;
-use std::error::Error;
+    let server_handle = unsafe { start_port_forwarding_server(server_addr.as_ptr(), accepted_peer) };
+    if server_handle.is_null() {
+        return Err("Failed to start server".into());
+    }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let server_peer_id = "Qm..."; // Replace with actual server peer ID
-    let client = PortForwardingClient::new(server_peer_id, "127.0.0.1:8080").await?;
-    
-    // The client will now forward connections from the server to localhost:8080
-    tokio::signal::ctrl_c().await?;
+    // Get the server peer id as a string
+    let peer_cstr = unsafe { get_server_peer_id(server_handle) };
+    if peer_cstr.is_null() {
+        unsafe { stop_port_forwarding_server(server_handle) };
+        return Err("Failed to get server peer id".into());
+    }
+    let server_peer_id = unsafe { CStr::from_ptr(peer_cstr) }.to_string_lossy().to_string();
+    // Free the allocated C string
+    unsafe { free_peer_id(peer_cstr as *mut _) };
+
+    println!("Server peer ID: {}", server_peer_id);
+
+    // Start the client: forward server connections to a local target (e.g., 127.0.0.1:8080)
+    let peer_c = CString::new(server_peer_id)?;
+    let local_target = CString::new("127.0.0.1:8080")?;
+    let client_handle = unsafe { start_port_forwarding_client(peer_c.as_ptr(), local_target.as_ptr()) };
+    if client_handle.is_null() {
+        unsafe { stop_port_forwarding_server(server_handle) };
+        return Err("Failed to start client".into());
+    }
+
+    // Let the client and server communicate
+    println!("Client and server started, waiting for communication...");
+    std::thread::sleep(Duration::from_secs(30));
+
+    // Clean up
+    println!("Stopping client and server...");
+    unsafe {
+        stop_port_forwarding_client(client_handle);
+        std::thread::sleep(Duration::from_secs(1));
+        stop_port_forwarding_server(server_handle);
+    }
+
     Ok(())
 }
 ```
