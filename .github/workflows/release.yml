@@ -82,6 +82,17 @@ jobs:
         with:
           path: artifacts
 
+      - name: Package artifacts per OS
+        run: |
+          set -e
+          cd artifacts
+          for d in kadugu-net-binaries-*; do
+            if [ -d "$d" ]; then
+              os="${d#kadugu-net-binaries-}"
+              zip -r "kadugu-net-${os}.zip" "$d"
+            fi
+          done
+
       - name: Create or Update Release
         id: create_release
         uses: ncipollo/release-action@v1
@@ -97,10 +108,8 @@ jobs:
           draft: false
           prerelease: false
           artifacts: |
-            artifacts/kadugu-net-binaries-*/*
+            artifacts/*.zip
           allowUpdates: true
           replacesArtifacts: true
           artifactErrorsFailBuild: true
           token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # This is automatically provided by GitHub Actions
