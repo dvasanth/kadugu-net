@@ -122,7 +122,7 @@ impl PortForwardingServer {
             .with_behaviour(|key_pair, relay_behaviour| Behaviour {
                 stream: stream::Behaviour::new(),
                 identify: identify::Behaviour::new(
-                    identify::Config::new("/proxy/0.0.1".to_string(), key_pair.public())
+                    identify::Config::new(config.proxy_protocol.to_string(), key_pair.public())
                         .with_agent_version(config.proxy_agent.clone()),
                 ),
                 relay_client: relay_behaviour,
@@ -138,12 +138,11 @@ impl PortForwardingServer {
         swarm.dial(relay_address.clone())?;
 
         let stop_receiver = stop_receiver;
-        const PROXY_PROTOCOL: &str = "/proxy";
         let incoming_streams = swarm
             .behaviour()
             .stream
             .new_control()
-            .accept(StreamProtocol::new(PROXY_PROTOCOL))?;
+            .accept(config.proxy_protocol.clone())?;
 
         let accepted_peer_ids = accepted_peer_ids.clone();
         // Create a new stop receiver for the incoming streams handler
@@ -164,55 +163,34 @@ impl PortForwardingServer {
         // Poll the swarm to make progress.
         let mut swarm_stop_receiver = stop_receiver.resubscribe();
         loop {
-            let result: Result<_, anyhow::Error> = {
-                tokio::select! {
-                    _ = swarm_stop_receiver.recv() => {
-                        tracing::info!("Received stop signal, shutting down server");
-                        break Ok(());
-                    }
-                    event = swarm.next() => {
-                        match event {
-                            Some(libp2p::swarm::SwarmEvent::ExternalAddrExpired { .. }) => {
-                                relay_reservation_complete = false;
-                                Ok(())
-                            }
-                            Some(libp2p::swarm::SwarmEvent::Behaviour(BehaviourEvent::RelayClient(
-                                relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },
-                            ))) => {
-                                tracing::info!("Reservation with relay {:?} completed ", relay_peer_id);
-                                relay_reservation_complete = true;
-                                Ok(())
-                            }
-                            Some(libp2p::swarm::SwarmEvent::Behaviour(BehaviourEvent::Identify(
-                                identify::Event::Received { .. },
-                            ))) => {
-                                if !relay_reservation_complete {
-                                    swarm.listen_on(relay_address.clone().with(Protocol::P2pCircuit))?;
-                                }
-                                Ok(())
-                            }
-                            Some(event) => {
-                                tracing::trace!(?event);
-                                Ok(())
-                            }
-                            None => {
-                                tracing::info!("Swarm stream ended");
-                                Ok(())
-                            }
-                        }
-                    }
-                }
-            };
-
-            // Return early if there was an error
-            // If there's an error (including our stop signal), return it
-            if let Err(e) = result {
-                // If it's our stop signal, return Ok(())
-                if e.to_string() == "Stop signal received" {
+            tokio::select! {
+                _ = swarm_stop_receiver.recv() => {
+                    tracing::info!("Received stop signal, shutting down server");
                     return Ok(());
+                },
+                event = swarm.next() => {
+                    match event {
+                        Some(libp2p::swarm::SwarmEvent::ExternalAddrExpired { .. }) => {
+                            relay_reservation_complete = false;
+                        },
+                        Some(libp2p::swarm::SwarmEvent::Behaviour(BehaviourEvent::RelayClient(
+                            relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },
+                        ))) => {
+                            tracing::info!("Reservation with relay {:?} completed ", relay_peer_id);
+                            relay_reservation_complete = true;
+                        },
+                        Some(libp2p::swarm::SwarmEvent::Behaviour(BehaviourEvent::Identify(
+                            identify::Event::Received { .. },
+                        ))) => {
+                            if !relay_reservation_complete {
+                                if let Err(e) = swarm.listen_on(relay_address.clone().with(Protocol::P2pCircuit)) {
+                                    tracing::warn!("Failed to listen on relay p2p-circuit: {}", e);
+                                }
+                            }
+                        },
+                        event => { tracing::trace!(?event); },
+                    }
                 }
-                // Otherwise, return the actual error
-                return Err(e);
             }
         }
     }

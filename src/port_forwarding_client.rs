@@ -132,7 +132,7 @@ impl PortForwardingClient {
             .with_behaviour(|key_pair, relay_behaviour| Behaviour {
                 stream: stream::Behaviour::new(),
                 identify: identify::Behaviour::new(
-                    identify::Config::new("/proxy/0.0.1".to_string(), key_pair.public())
+                    identify::Config::new(config.proxy_protocol.to_string(), key_pair.public())
                         .with_agent_version(config.proxy_agent.clone()),
                 ),
                 relay_client: relay_behaviour,

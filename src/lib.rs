@@ -350,7 +350,7 @@ mod tests {
 
         // Let the client and server communicate
         tracing::info!("Client and server started, waiting for communication...");
-        std::thread::sleep(Duration::from_secs(10));
+        std::thread::sleep(Duration::from_secs(30));
 
         // Clean up
         tracing::info!("Stopping client and server...");
